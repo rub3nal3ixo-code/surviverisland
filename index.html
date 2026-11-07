@@ -158,17 +158,77 @@
       if(roll<.62) addTree(x,z); else if(roll<.88) addRock(x,z); else addBush(x,z);
     }
 
-    // A simple third-person player placeholder; character rig and animations are planned next.
+    // Personagem bárbara: corpo estilizado, equipamento de couro, peles e barba.
     const player=new THREE.Group();
-    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.42,.9,4,8),new THREE.MeshStandardMaterial({color:0x344d42}));
-    body.position.y=1.05; body.castShadow=true; player.add(body);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(.29,16,12),new THREE.MeshStandardMaterial({color:0xc99570}));
-    head.position.y=1.86; head.castShadow=true; player.add(head);
-    const legs=[];
-    for(const x of [-.19,.19]) {
-      const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.55,3,6),new THREE.MeshStandardMaterial({color:0x26352f}));
-      leg.position.set(x,.35,0); leg.castShadow=true; player.add(leg); legs.push(leg);
+    const skinMat=new THREE.MeshStandardMaterial({color:0xb97850,roughness:.88});
+    const skinLight=new THREE.MeshStandardMaterial({color:0xc98b61,roughness:.9});
+    const leatherMat=new THREE.MeshStandardMaterial({color:0x493023,roughness:1});
+    const leatherLight=new THREE.MeshStandardMaterial({color:0x765039,roughness:1});
+    const furMat=new THREE.MeshStandardMaterial({color:0x8a7658,roughness:1});
+    const darkMat=new THREE.MeshStandardMaterial({color:0x211c18,roughness:1});
+    const metalMat=new THREE.MeshStandardMaterial({color:0x777d79,metalness:.65,roughness:.35});
+    const braidMat=new THREE.MeshStandardMaterial({color:0x4a2b1d,roughness:1});
+    function part(parent,geo,mat,x,y,z,sx=1,sy=1,sz=1){
+      const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
     }
+    function capsuleBetween(parent,a,b,r,mat){
+      const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b),dir=end.clone().sub(start);
+      const m=new THREE.Mesh(new THREE.CapsuleGeometry(r,Math.max(.01,dir.length()-r*2),4,8),mat);
+      m.position.copy(start).add(end).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());m.castShadow=true;parent.add(m);return m;
+    }
+
+    // Tronco musculado e colete curto de couro.
+    part(player,new THREE.CapsuleGeometry(.43,.68,5,10),skinMat,0,1.28,0,1.22,1,0.9);
+    part(player,new THREE.BoxGeometry(.78,.62,.48),leatherMat,0,1.31,.015,.0+1,1,1);
+    part(player,new THREE.SphereGeometry(.34,16,12),skinLight,-.22,1.48,-.02,.92,.72,.78);
+    part(player,new THREE.SphereGeometry(.34,16,12),skinLight,.22,1.48,-.02,.92,.72,.78);
+    // Cinto, fivela e saiote de couro.
+    part(player,new THREE.CylinderGeometry(.43,.46,.13,12),leatherLight,0,.88,0,1,1,.88);
+    part(player,new THREE.BoxGeometry(.16,.17,.07),metalMat,0,.88,-.27);
+    part(player,new THREE.ConeGeometry(.48,.62,6),leatherMat,0,.53,0,1,.8,.8);
+    part(player,new THREE.BoxGeometry(.18,.55,.08),leatherLight,-.18,.53,-.31,.65,1,.7);
+    part(player,new THREE.BoxGeometry(.18,.55,.08),leatherLight,.18,.53,-.31,.65,1,.7);
+
+    // Cabeça, cabelo comprido, barba e tranças.
+    part(player,new THREE.SphereGeometry(.29,18,14),skinLight,0,2.02,-.015,1,1.12,.92);
+    part(player,new THREE.SphereGeometry(.305,16,12),darkMat,0,2.19,.035,1.03,.58,1.02);
+    part(player,new THREE.BoxGeometry(.12,.38,.13),braidMat,-.31,1.99,.02,.8,1,1);
+    part(player,new THREE.BoxGeometry(.12,.38,.13),braidMat,.31,1.99,.02,.8,1,1);
+    part(player,new THREE.SphereGeometry(.235,16,12),braidMat,0,1.83,-.19,1,.8,.62);
+    part(player,new THREE.ConeGeometry(.19,.48,8),braidMat,0,1.55,-.19,1,1,.85);
+    part(player,new THREE.SphereGeometry(.045,10,8),darkMat,-.105,2.055,-.275,1,1,.55);
+    part(player,new THREE.SphereGeometry(.045,10,8),darkMat,.105,2.055,-.275,1,1,.55);
+    // Ombreiras de pele e correias cruzadas.
+    part(player,new THREE.SphereGeometry(.29,12,10),furMat,-.49,1.72,0,1.25,.72,1);
+    part(player,new THREE.SphereGeometry(.29,12,10),furMat,.49,1.72,0,1.25,.72,1);
+    const strap=part(player,new THREE.BoxGeometry(.13,.95,.09),leatherLight,.17,1.39,-.27,1,1,1);strap.rotation.z=-.36;
+    const strap2=part(player,new THREE.BoxGeometry(.13,.95,.09),leatherLight,-.17,1.39,-.27,1,1,1);strap2.rotation.z=.36;
+
+    // Braços articulados para a animação de caminhada.
+    const arms=[];
+    for(const side of [-1,1]){
+      const arm=new THREE.Group();arm.position.set(side*.56,1.67,0);player.add(arm);arms.push(arm);
+      capsuleBetween(arm,[0,-.08,0],[side*.08,-.48,-.015],.17,skinMat);
+      capsuleBetween(arm,[side*.08,-.48,-.015],[side*.1,-.83,-.06],.135,skinLight);
+      part(arm,new THREE.CylinderGeometry(.16,.14,.2,10),leatherMat,side*.1,-.68,-.04,1,1,1);
+      for(let i=0;i<3;i++){const band=part(arm,new THREE.CylinderGeometry(.145,.145,.055,10),leatherLight,side*.1,-.54-i*.09,-.04);band.rotation.z=side*-.12;}
+      part(arm,new THREE.SphereGeometry(.14,12,10),skinMat,side*.1,-.88,-.06,1,.8,1);
+    }
+
+    // Pernas com calças de couro e botas.
+    const legs=[];
+    for(const side of [-1,1]){
+      const leg=new THREE.Group();leg.position.set(side*.22,.82,0);player.add(leg);legs.push(leg);
+      part(leg,new THREE.CapsuleGeometry(.16,.53,4,8),leatherMat,0,-.31,0,1,1,.95);
+      part(leg,new THREE.CapsuleGeometry(.14,.36,4,8),skinMat,0,-.68,0,1,1,.95);
+      part(leg,new THREE.CylinderGeometry(.19,.2,.3,9),leatherLight,0,-.86,-.035,1,1,1);
+      part(leg,new THREE.BoxGeometry(.3,.16,.48),darkMat,0,-.98,-.11,1,1,1);
+    }
+    // Machado simples preso às costas: identidade visual de sobrevivente bárbaro.
+    const axe=new THREE.Group();axe.position.set(.34,1.35,.28);axe.rotation.z=-.22;player.add(axe);
+    part(axe,new THREE.CylinderGeometry(.035,.045,.95,8),leatherLight,0,0,0);
+    const blade=part(axe,new THREE.BoxGeometry(.38,.32,.07),metalMat,-.16,.36,0,1,1,1);blade.rotation.z=-.35;
+    part(axe,new THREE.SphereGeometry(.07,10,8),leatherMat,0,-.48,0);
     player.position.set(0,heightAt(0,0),0); scene.add(player);
 
     const keys={w:false,a:false,s:false,d:false};
@@ -224,8 +284,8 @@
         move.normalize(); player.position.addScaledVector(move,5.2*dt);
         player.rotation.y=Math.atan2(move.x,move.z);
         walkTime+=dt*10;
-        legs[0].rotation.x=Math.sin(walkTime)*.55;legs[1].rotation.x=-Math.sin(walkTime)*.55;
-      } else {legs[0].rotation.x*=.8;legs[1].rotation.x*=.8;}
+        legs[0].rotation.x=Math.sin(walkTime)*.55;legs[1].rotation.x=-Math.sin(walkTime)*.55;arms[0].rotation.x=-Math.sin(walkTime)*.38;arms[1].rotation.x=Math.sin(walkTime)*.38;
+      } else {legs[0].rotation.x*=.8;legs[1].rotation.x*=.8;arms[0].rotation.x*=.8;arms[1].rotation.x*=.8;}
       const radius=Math.hypot(player.position.x,player.position.z);
       if(radius>46){player.position.x*=46/radius;player.position.z*=46/radius;}
       for(const o of obstacles){const dx=player.position.x-o.x,dz=player.position.z-o.z,d=Math.hypot(dx,dz);if(d<1.0){player.position.x+=dx/(d||1)*.035;player.position.z+=dz/(d||1)*.035;}}
