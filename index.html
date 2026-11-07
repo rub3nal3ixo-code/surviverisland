@@ -158,77 +158,133 @@
       if(roll<.62) addTree(x,z); else if(roll<.88) addRock(x,z); else addBush(x,z);
     }
 
-    // Personagem bárbara: corpo estilizado, equipamento de couro, peles e barba.
+    // Viking bárbaro estilizado: armadura, capacete, barba ruiva e machado.
     const player=new THREE.Group();
-    const skinMat=new THREE.MeshStandardMaterial({color:0xb97850,roughness:.88});
-    const skinLight=new THREE.MeshStandardMaterial({color:0xc98b61,roughness:.9});
-    const leatherMat=new THREE.MeshStandardMaterial({color:0x493023,roughness:1});
-    const leatherLight=new THREE.MeshStandardMaterial({color:0x765039,roughness:1});
-    const furMat=new THREE.MeshStandardMaterial({color:0x8a7658,roughness:1});
-    const darkMat=new THREE.MeshStandardMaterial({color:0x211c18,roughness:1});
-    const metalMat=new THREE.MeshStandardMaterial({color:0x777d79,metalness:.65,roughness:.35});
-    const braidMat=new THREE.MeshStandardMaterial({color:0x4a2b1d,roughness:1});
+    const skinMat=new THREE.MeshStandardMaterial({color:0xb97850,roughness:.9});
+    const skinLight=new THREE.MeshStandardMaterial({color:0xd09269,roughness:.88});
+    const leatherMat=new THREE.MeshStandardMaterial({color:0x39251c,roughness:.94});
+    const leatherLight=new THREE.MeshStandardMaterial({color:0x795039,roughness:.92});
+    const furMat=new THREE.MeshStandardMaterial({color:0xb3a080,roughness:1});
+    const furDark=new THREE.MeshStandardMaterial({color:0x66543e,roughness:1});
+    const metalMat=new THREE.MeshStandardMaterial({color:0x8c9699,metalness:.72,roughness:.3});
+    const metalDark=new THREE.MeshStandardMaterial({color:0x3f4b50,metalness:.55,roughness:.42});
+    const redHair=new THREE.MeshStandardMaterial({color:0x9c431e,roughness:1});
+    const redLight=new THREE.MeshStandardMaterial({color:0xc05a29,roughness:1});
+    const darkMat=new THREE.MeshStandardMaterial({color:0x211b18,roughness:1});
     function part(parent,geo,mat,x,y,z,sx=1,sy=1,sz=1){
       const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
     }
-    function capsuleBetween(parent,a,b,r,mat){
-      const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b),dir=end.clone().sub(start);
-      const m=new THREE.Mesh(new THREE.CapsuleGeometry(r,Math.max(.01,dir.length()-r*2),4,8),mat);
-      m.position.copy(start).add(end).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize());m.castShadow=true;parent.add(m);return m;
+    function link(parent,a,b,r,mat,radial=9){
+      const A=new THREE.Vector3(...a),B=new THREE.Vector3(...b),d=B.clone().sub(A);
+      const m=new THREE.Mesh(new THREE.CylinderGeometry(r*.82,r,d.length(),radial),mat);
+      m.position.copy(A).add(B).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());
+      m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+    }
+    function horn(parent,points,radii,mat){
+      for(let i=0;i<points.length-1;i++)link(parent,points[i],points[i+1],radii[i],mat,8);
+      const tip=part(parent,new THREE.SphereGeometry(radii[radii.length-1],8,6),mat,...points[points.length-1]);
+      return tip;
     }
 
-    // Tronco musculado e colete curto de couro.
-    part(player,new THREE.CapsuleGeometry(.43,.68,5,10),skinMat,0,1.28,0,1.22,1,0.9);
-    part(player,new THREE.BoxGeometry(.78,.62,.48),leatherMat,0,1.31,.015,.0+1,1,1);
-    part(player,new THREE.SphereGeometry(.34,16,12),skinLight,-.22,1.48,-.02,.92,.72,.78);
-    part(player,new THREE.SphereGeometry(.34,16,12),skinLight,.22,1.48,-.02,.92,.72,.78);
-    // Cinto, fivela e saiote de couro.
-    part(player,new THREE.CylinderGeometry(.43,.46,.13,12),leatherLight,0,.88,0,1,1,.88);
-    part(player,new THREE.BoxGeometry(.16,.17,.07),metalMat,0,.88,-.27);
-    part(player,new THREE.ConeGeometry(.48,.62,6),leatherMat,0,.53,0,1,.8,.8);
-    part(player,new THREE.BoxGeometry(.18,.55,.08),leatherLight,-.18,.53,-.31,.65,1,.7);
-    part(player,new THREE.BoxGeometry(.18,.55,.08),leatherLight,.18,.53,-.31,.65,1,.7);
+    // Corpo e túnica de couro em camadas.
+    part(player,new THREE.CapsuleGeometry(.39,.72,6,12),skinMat,0,1.25,0,1.2,1,.9);
+    part(player,new THREE.CapsuleGeometry(.43,.58,5,10),leatherMat,0,1.31,-.015,1.15,1,.9);
+    part(player,new THREE.BoxGeometry(.68,.48,.13),leatherLight,0,1.34,-.31,1,1,.7);
+    // Peitoral segmentado e rebites metálicos.
+    part(player,new THREE.BoxGeometry(.48,.43,.045),metalDark,0,1.42,-.39,1,1,1);
+    part(player,new THREE.BoxGeometry(.39,.35,.055),leatherLight,0,1.43,-.425,1,1,1);
+    for(let y of [1.28,1.42,1.56]) for(let x of [-.17,.17])
+      part(player,new THREE.SphereGeometry(.025,8,6),metalMat,x,y,-.462);
+    // Gola de pele sobre os ombros.
+    part(player,new THREE.TorusGeometry(.42,.12,8,16,Math.PI),furMat,0,1.67,0,1,1,.9).rotation.z=Math.PI;
+    for(let i=0;i<9;i++){
+      const x=-.42+i*.105;
+      part(player,new THREE.ConeGeometry(.075,.22,6),i%2?furMat:furDark,x,1.62,-.05,.85,1,.8).rotation.z=(i-4)*-.08;
+    }
 
-    // Cabeça, cabelo comprido, barba e tranças.
-    part(player,new THREE.SphereGeometry(.29,18,14),skinLight,0,2.02,-.015,1,1.12,.92);
-    part(player,new THREE.SphereGeometry(.305,16,12),darkMat,0,2.19,.035,1.03,.58,1.02);
-    part(player,new THREE.BoxGeometry(.12,.38,.13),braidMat,-.31,1.99,.02,.8,1,1);
-    part(player,new THREE.BoxGeometry(.12,.38,.13),braidMat,.31,1.99,.02,.8,1,1);
-    part(player,new THREE.SphereGeometry(.235,16,12),braidMat,0,1.83,-.19,1,.8,.62);
-    part(player,new THREE.ConeGeometry(.19,.48,8),braidMat,0,1.55,-.19,1,1,.85);
-    part(player,new THREE.SphereGeometry(.045,10,8),darkMat,-.105,2.055,-.275,1,1,.55);
-    part(player,new THREE.SphereGeometry(.045,10,8),darkMat,.105,2.055,-.275,1,1,.55);
-    // Ombreiras de pele e correias cruzadas.
-    part(player,new THREE.SphereGeometry(.29,12,10),furMat,-.49,1.72,0,1.25,.72,1);
-    part(player,new THREE.SphereGeometry(.29,12,10),furMat,.49,1.72,0,1.25,.72,1);
-    const strap=part(player,new THREE.BoxGeometry(.13,.95,.09),leatherLight,.17,1.39,-.27,1,1,1);strap.rotation.z=-.36;
-    const strap2=part(player,new THREE.BoxGeometry(.13,.95,.09),leatherLight,-.17,1.39,-.27,1,1,1);strap2.rotation.z=.36;
+    // Cinto largo com fivela e painéis frontais.
+    part(player,new THREE.CylinderGeometry(.43,.44,.14,14),leatherLight,0,.91,0,1,1,.9);
+    part(player,new THREE.BoxGeometry(.18,.17,.07),metalMat,0,.91,-.405);
+    part(player,new THREE.BoxGeometry(.11,.1,.035),metalDark,0,.91,-.45);
+    for(let i=-2;i<=2;i++){
+      const flap=part(player,new THREE.BoxGeometry(.15,.48,.055),i%2?leatherLight:leatherMat,i*.16,.59,-.36,.95,1,.8);
+      flap.rotation.z=i*.035;
+      part(player,new THREE.SphereGeometry(.022,7,6),metalMat,i*.16,.78,-.4);
+    }
 
-    // Braços articulados para a animação de caminhada.
+    // Cabeça e traços faciais voltados para a frente (-Z).
+    part(player,new THREE.SphereGeometry(.275,20,16),skinLight,0,2.03,-.035,1,1.12,.92);
+    part(player,new THREE.SphereGeometry(.055,10,8),skinMat,-.27,2.02,-.02,1,.9,.7);
+    part(player,new THREE.SphereGeometry(.055,10,8),skinMat,.27,2.02,-.02,1,.9,.7);
+    part(player,new THREE.SphereGeometry(.035,10,8),darkMat,-.105,2.065,-.286,1,.8,.55);
+    part(player,new THREE.SphereGeometry(.035,10,8),darkMat,.105,2.065,-.286,1,.8,.55);
+    part(player,new THREE.BoxGeometry(.22,.045,.045),redHair,0,2.11,-.29,1,1,1);
+    part(player,new THREE.ConeGeometry(.07,.16,8),skinMat,0,1.99,-.31,1,.9,.7);
+
+    // Barba ruiva espessa, dividida em madeixas cónicas.
+    part(player,new THREE.SphereGeometry(.205,16,12),redHair,0,1.86,-.19,1,.72,.72);
+    for(let i=0;i<7;i++){
+      const x=(i-3)*.052;
+      const strand=part(player,new THREE.ConeGeometry(.075,.36+(3-Math.abs(i-3))*.035,9),i%2?redHair:redLight,x,1.69,-.27,1,1,.85);
+      strand.rotation.z=(3-i)*.075;
+    }
+    part(player,new THREE.ConeGeometry(.105,.25,9),redHair,0,1.49,-.23,1,1,.85);
+
+    // Cabelo ruivo comprido e duas tranças.
+    part(player,new THREE.SphereGeometry(.29,16,12),redHair,0,2.22,.045,1.05,.55,1.05);
+    for(const side of [-1,1]){
+      const braid=part(player,new THREE.CylinderGeometry(.075,.055,.58,9),redHair,side*.27,1.91,.09,1,1,1);
+      braid.rotation.z=side*.12;
+      for(let j=0;j<4;j++)part(player,new THREE.TorusGeometry(.058,.018,6,9),redLight,side*.27,2.1-j*.12,.09);
+    }
+
+    // Capacete metálico Viking com protecção frontal e chifres curvos.
+    part(player,new THREE.SphereGeometry(.315,16,12,0,Math.PI*2,0,Math.PI/2),metalMat,0,2.24,.025,1.08,.86,1.02);
+    part(player,new THREE.BoxGeometry(.62,.075,.09),metalDark,0,2.19,-.27);
+    part(player,new THREE.BoxGeometry(.075,.32,.075),metalMat,0,2.08,-.285);
+    for(const side of [-1,1]){
+      part(player,new THREE.SphereGeometry(.08,10,8),metalDark,side*.29,2.18,.015,1,.8,1);
+      horn(player,[[side*.27,2.24,.02],[side*.43,2.36,.02],[side*.52,2.53,.02],[side*.48,2.66,.02]],[.095,.075,.045,.012],furMat);
+    }
+    // Ombreiras com rebites.
+    for(const side of [-1,1]){
+      part(player,new THREE.SphereGeometry(.245,14,10),metalDark,side*.48,1.69,0,1.2,.7,1);
+      part(player,new THREE.SphereGeometry(.19,14,10),metalMat,side*.49,1.73,-.035,1.18,.48,.95);
+      for(let j=0;j<3;j++)part(player,new THREE.SphereGeometry(.027,8,6),furMat,side*(.38+j*.1),1.78,-.19);
+    }
+
+    // Braços articulados, braçadeiras e mãos.
     const arms=[];
     for(const side of [-1,1]){
-      const arm=new THREE.Group();arm.position.set(side*.56,1.67,0);player.add(arm);arms.push(arm);
-      capsuleBetween(arm,[0,-.08,0],[side*.08,-.48,-.015],.17,skinMat);
-      capsuleBetween(arm,[side*.08,-.48,-.015],[side*.1,-.83,-.06],.135,skinLight);
-      part(arm,new THREE.CylinderGeometry(.16,.14,.2,10),leatherMat,side*.1,-.68,-.04,1,1,1);
-      for(let i=0;i<3;i++){const band=part(arm,new THREE.CylinderGeometry(.145,.145,.055,10),leatherLight,side*.1,-.54-i*.09,-.04);band.rotation.z=side*-.12;}
-      part(arm,new THREE.SphereGeometry(.14,12,10),skinMat,side*.1,-.88,-.06,1,.8,1);
+      const arm=new THREE.Group();arm.position.set(side*.56,1.66,0);player.add(arm);arms.push(arm);
+      link(arm,[0,-.04,0],[side*.08,-.43,-.015],.145,skinMat);
+      link(arm,[side*.08,-.43,-.015],[side*.1,-.82,-.055],.12,skinLight);
+      part(arm,new THREE.CylinderGeometry(.16,.14,.24,10),leatherMat,side*.1,-.64,-.035);
+      part(arm,new THREE.CylinderGeometry(.15,.13,.23,10),metalDark,side*.1,-.48,-.025);
+      for(let j=0;j<3;j++)part(arm,new THREE.TorusGeometry(.135,.018,6,12),metalMat,side*.1,-.42-j*.075,-.025);
+      part(arm,new THREE.SphereGeometry(.13,12,10),skinMat,side*.1,-.88,-.06,1,.82,1);
     }
 
-    // Pernas com calças de couro e botas.
+    // Pernas articuladas, calças, joelheiras de metal e botas de pele.
     const legs=[];
     for(const side of [-1,1]){
       const leg=new THREE.Group();leg.position.set(side*.22,.82,0);player.add(leg);legs.push(leg);
-      part(leg,new THREE.CapsuleGeometry(.16,.53,4,8),leatherMat,0,-.31,0,1,1,.95);
-      part(leg,new THREE.CapsuleGeometry(.14,.36,4,8),skinMat,0,-.68,0,1,1,.95);
-      part(leg,new THREE.CylinderGeometry(.19,.2,.3,9),leatherLight,0,-.86,-.035,1,1,1);
-      part(leg,new THREE.BoxGeometry(.3,.16,.48),darkMat,0,-.98,-.11,1,1,1);
+      part(leg,new THREE.CapsuleGeometry(.155,.5,5,9),leatherMat,0,-.29,0,1,1,.95);
+      part(leg,new THREE.CylinderGeometry(.17,.16,.14,10),metalDark,0,-.55,-.015);
+      part(leg,new THREE.CapsuleGeometry(.135,.34,4,8),leatherLight,0,-.69,0,1,1,.95);
+      part(leg,new THREE.CylinderGeometry(.19,.2,.22,10),furMat,0,-.86,-.035);
+      part(leg,new THREE.BoxGeometry(.31,.16,.48),darkMat,0,-.98,-.11,1,1,1);
+      part(leg,new THREE.BoxGeometry(.3,.06,.08),metalMat,0,-.88,-.245);
     }
-    // Machado simples preso às costas: identidade visual de sobrevivente bárbaro.
-    const axe=new THREE.Group();axe.position.set(.34,1.35,.28);axe.rotation.z=-.22;player.add(axe);
-    part(axe,new THREE.CylinderGeometry(.035,.045,.95,8),leatherLight,0,0,0);
-    const blade=part(axe,new THREE.BoxGeometry(.38,.32,.07),metalMat,-.16,.36,0,1,1,1);blade.rotation.z=-.35;
-    part(axe,new THREE.SphereGeometry(.07,10,8),leatherMat,0,-.48,0);
+
+    // Machado de duas lâminas transportado às costas.
+    const axe=new THREE.Group();axe.position.set(.34,1.42,.32);axe.rotation.z=-.2;player.add(axe);
+    part(axe,new THREE.CylinderGeometry(.035,.045,1.18,10),leatherLight,0,0,0);
+    part(axe,new THREE.CylinderGeometry(.052,.052,.25,10),leatherMat,0,-.28,0);
+    const axeBlade=part(axe,new THREE.BoxGeometry(.56,.34,.075),metalMat,-.04,.55,0,1,1,1);
+    axeBlade.rotation.z=-.12;
+    part(axe,new THREE.BoxGeometry(.12,.38,.1),metalDark,-.04,.55,-.01);
+    part(axe,new THREE.SphereGeometry(.07,10,8),metalDark,0,.75,0);
     player.position.set(0,heightAt(0,0),0); scene.add(player);
 
     const keys={w:false,a:false,s:false,d:false};
