@@ -282,7 +282,7 @@
       const moving=move.lengthSq()>0;
       if(moving){
         move.normalize(); player.position.addScaledVector(move,5.2*dt);
-        player.rotation.y=Math.atan2(move.x,move.z);
+        player.rotation.y=Math.atan2(-move.x,-move.z);
         walkTime+=dt*10;
         legs[0].rotation.x=Math.sin(walkTime)*.55;legs[1].rotation.x=-Math.sin(walkTime)*.55;arms[0].rotation.x=-Math.sin(walkTime)*.38;arms[1].rotation.x=Math.sin(walkTime)*.38;
       } else {legs[0].rotation.x*=.8;legs[1].rotation.x*=.8;arms[0].rotation.x*=.8;arms[1].rotation.x*=.8;}
