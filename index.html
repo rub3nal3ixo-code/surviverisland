@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#10231d">
+  <title>SURVIVAL ISLAND — Protótipo 0.1</title>
+  <style>
+    :root { color-scheme: dark; --panel:rgba(10,22,19,.82); --line:rgba(214,239,222,.18); --accent:#a7d66d; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; width:100%; height:100%; overflow:hidden; background:#10231d; font-family:Inter,system-ui,Segoe UI,sans-serif; color:#f4f6ed; }
+    #game { position:fixed; inset:0; }
+    canvas { display:block; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; backdrop-filter:blur(12px); box-shadow:0 10px 35px #0004; }
+    #brand { position:fixed; top:14px; left:14px; padding:12px 15px; min-width:210px; }
+    #brand strong { display:block; letter-spacing:.16em; font-size:13px; color:var(--accent); }
+    #brand span { display:block; margin-top:4px; color:#c4d2c6; font-size:11px; }
+    #stats { position:fixed; top:14px; right:14px; display:flex; gap:8px; }
+    .stat { padding:10px 12px; min-width:82px; text-align:center; }
+    .stat b { display:block; font-size:17px; color:var(--accent); }
+    .stat small { color:#c4d2c6; font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    #help { position:fixed; left:14px; bottom:14px; padding:12px 14px; max-width:300px; font-size:12px; line-height:1.55; color:#d8e3d7; }
+    #help b { color:var(--accent); }
+    #message { position:fixed; left:50%; top:22%; transform:translate(-50%,-10px); opacity:0; transition:.2s; padding:11px 16px; pointer-events:none; }
+    #message.show { opacity:1; transform:translate(-50%,0); }
+    #inventory { position:fixed; right:14px; bottom:14px; width:210px; padding:12px 14px; }
+    #inventory h3 { margin:0 0 8px; font-size:12px; color:var(--accent); letter-spacing:.1em; }
+    .item { display:flex; justify-content:space-between; padding:5px 0; border-top:1px solid #ffffff14; font-size:12px; }
+    .item span:last-child { font-weight:700; }
+    #touch { display:none; position:fixed; left:14px; bottom:18px; gap:8px; align-items:end; }
+    .pad { display:grid; grid-template-columns:repeat(3,48px); grid-template-rows:repeat(2,48px); gap:5px; }
+    .touchbtn { border:1px solid #ffffff35; border-radius:12px; background:#10231dcc; color:white; font-size:18px; touch-action:none; }
+    .touchbtn:active { background:#527b42; }
+    #actions { display:flex; flex-direction:column; gap:7px; margin-left:8px; }
+    #actions button { min-width:72px; height:45px; font-size:11px; font-weight:700; }
+    #crosshair { position:fixed; left:50%; top:50%; width:5px; height:5px; border-radius:50%; background:#fff9; box-shadow:0 0 0 3px #0003; pointer-events:none; }
+    @media (max-width:700px) {
+      #brand { top:8px; left:8px; min-width:0; padding:9px 11px; }
+      #brand span { display:none; }
+      #stats { top:8px; right:8px; gap:4px; }
+      .stat { min-width:57px; padding:7px 6px; }
+      .stat b { font-size:14px; }
+      .stat small { font-size:8px; }
+      #help { display:none; }
+      #inventory { right:8px; bottom:8px; width:145px; padding:9px; }
+      #touch { display:flex; }
+      .pad { grid-template-columns:repeat(3,42px); grid-template-rows:repeat(2,42px); }
+      .touchbtn { font-size:15px; }
+      #actions { margin-left:3px; }
+      #actions button { min-width:58px; height:42px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="brand" class="panel"><strong>SURVIVAL ISLAND</strong><span>PROTÓTIPO 0.1 · SOBREVIVE E EXPLORA</span></div>
+  <div id="stats">
+    <div class="stat panel"><b id="health">100</b><small>Vida</small></div>
+    <div class="stat panel"><b id="day">1</b><small>Dia</small></div>
+  </div>
+  <div id="help" class="panel"><b>CONTROLos</b><br>W A S D — mover · Rato — câmara<br>ESPAÇO — saltar · E — recolher recurso<br>Recolhe madeira e pedra para preparar a tua sobrevivência.</div>
+  <div id="inventory" class="panel"><h3>INVENTÁRIO</h3><div class="item"><span>🪵 Madeira</span><span id="wood">0</span></div><div class="item"><span>🪨 Pedra</span><span id="stone">0</span></div><div class="item"><span>🍓 Alimento</span><span id="food">0</span></div></div>
+  <div id="message" class="panel"></div>
+  <div id="crosshair"></div>
+  <div id="touch">
+    <div class="pad">
+      <span></span><button class="touchbtn" data-key="w">▲</button><span></span>
+      <button class="touchbtn" data-key="a">◀</button><button class="touchbtn" data-key="s">▼</button><button class="touchbtn" data-key="d">▶</button>
+    </div>
+    <div id="actions"><button class="touchbtn" id="jump">SALTAR</button><button class="touchbtn" id="gather">RECOLHER</button></div>
+  </div>
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+
+    const mount = document.getElementById('game');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x9bc9d0);
+    scene.fog = new THREE.Fog(0x9bc9d0, 42, 115);
+
+    const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.1, 220);
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.8));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    mount.appendChild(renderer.domElement);
+
+    scene.add(new THREE.HemisphereLight(0xdaf3ff, 0x536044, 2.0));
+    const sun = new THREE.DirectionalLight(0xfff1d2, 2.2);
+    sun.position.set(-28, 48, 22);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048,2048);
+    sun.shadow.camera.left = -55; sun.shadow.camera.right = 55;
+    sun.shadow.camera.top = 55; sun.shadow.camera.bottom = -55;
+    scene.add(sun);
+
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(220,220), new THREE.MeshStandardMaterial({color:0x287f91, roughness:.32, metalness:.12}));
+    water.rotation.x = -Math.PI/2; water.position.y = -1.1; scene.add(water);
+
+    function heightAt(x,z) {
+      const r = Math.sqrt(x*x + z*z);
+      return Math.max(-.3, 1.2 + Math.sin(x*.13)*.7 + Math.cos(z*.11)*.65 + Math.sin((x+z)*.08)*.45 - Math.max(0,r-24)*.13);
+    }
+    const verts=[], indices=[], size=100, divisions=100;
+    for(let iz=0;iz<=divisions;iz++) for(let ix=0;ix<=divisions;ix++) {
+      const x=(ix/divisions-.5)*size, z=(iz/divisions-.5)*size;
+      verts.push(x,heightAt(x,z),z);
+    }
+    for(let iz=0;iz<divisions;iz++) for(let ix=0;ix<divisions;ix++) {
+      const a=iz*(divisions+1)+ix, b=a+1, c=a+divisions+1, d=c+1;
+      indices.push(a,c,b,b,c,d);
+    }
+    const terrainGeo=new THREE.BufferGeometry();
+    terrainGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+    terrainGeo.setIndex(indices); terrainGeo.computeVertexNormals();
+    const terrain=new THREE.Mesh(terrainGeo,new THREE.MeshStandardMaterial({color:0x6e9b52, roughness:1}));
+    terrain.receiveShadow=true; scene.add(terrain);
+
+    const sand=new THREE.Mesh(new THREE.RingGeometry(25,35,100),new THREE.MeshStandardMaterial({color:0xc8b47a, side:THREE.DoubleSide, roughness:1}));
+    sand.rotation.x=-Math.PI/2; sand.position.y=-.15; scene.add(sand);
+
+    const obstacles=[];
+    const resources=[];
+    const trunkMat=new THREE.MeshStandardMaterial({color:0x765034});
+    const leafMats=[0x2f7046,0x3f8050,0x477f45].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:1}));
+    function addTree(x,z) {
+      const y=heightAt(x,z);
+      const group=new THREE.Group(); group.position.set(x,y,z);
+      const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.22,.34,2.5,7),trunkMat); trunk.position.y=1.25; trunk.castShadow=true; group.add(trunk);
+      const crown=new THREE.Mesh(new THREE.ConeGeometry(1.55,3.2,8),leafMats[Math.floor(Math.random()*leafMats.length)]);
+      crown.position.y=3.35; crown.castShadow=true; group.add(crown);
+      scene.add(group); obstacles.push({x,z,r:.75});
+      resources.push({mesh:group,x,z,type:'wood',amount:3,active:true});
+    }
+    const rockMat=new THREE.MeshStandardMaterial({color:0x858b87,roughness:1});
+    function addRock(x,z) {
+      const y=heightAt(x,z);
+      const mesh=new THREE.Mesh(new THREE.DodecahedronGeometry(.8+Math.random()*.45,0),rockMat);
+      mesh.position.set(x,y+.45,z); mesh.scale.y=.75; mesh.rotation.set(Math.random(),Math.random(),Math.random()); mesh.castShadow=true; mesh.receiveShadow=true; scene.add(mesh);
+      obstacles.push({x,z,r:.75}); resources.push({mesh,x,z,type:'stone',amount:2,active:true});
+    }
+    function addBush(x,z) {
+      const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(.65,1),new THREE.MeshStandardMaterial({color:0x8eaa4c}));
+      mesh.position.set(x,heightAt(x,z)+.45,z); mesh.scale.set(1,.75,1); scene.add(mesh);
+      resources.push({mesh,x,z,type:'food',amount:2,active:true});
+    }
+    let seed=731;
+    function rand(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
+    for(let i=0;i<85;i++) {
+      const angle=rand()*Math.PI*2, radius=7+rand()*37;
+      const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius;
+      if(Math.hypot(x,z)<5) continue;
+      const roll=rand();
+      if(roll<.62) addTree(x,z); else if(roll<.88) addRock(x,z); else addBush(x,z);
+    }
+
+    // A simple third-person player placeholder; character rig and animations are planned next.
+    const player=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.CapsuleGeometry(.42,.9,4,8),new THREE.MeshStandardMaterial({color:0x344d42}));
+    body.position.y=1.05; body.castShadow=true; player.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.29,16,12),new THREE.MeshStandardMaterial({color:0xc99570}));
+    head.position.y=1.86; head.castShadow=true; player.add(head);
+    const legs=[];
+    for(const x of [-.19,.19]) {
+      const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.13,.55,3,6),new THREE.MeshStandardMaterial({color:0x26352f}));
+      leg.position.set(x,.35,0); leg.castShadow=true; player.add(leg); legs.push(leg);
+    }
+    player.position.set(0,heightAt(0,0),0); scene.add(player);
+
+    const keys={w:false,a:false,s:false,d:false};
+    const inventory={wood:0,stone:0,food:0};
+    let yaw=0, pitch=.28, vertical=0, grounded=true, pointerLocked=false, walkTime=0;
+    const clock=new THREE.Clock();
+    const message=document.getElementById('message');
+    let messageTimer;
+    function notify(text){message.textContent=text;message.classList.add('show');clearTimeout(messageTimer);messageTimer=setTimeout(()=>message.classList.remove('show'),1800);}
+    function refresh(){for(const k of Object.keys(inventory))document.getElementById(k).textContent=inventory[k];}
+    function nearestResource(){
+      let best=null,dist=3.3;
+      for(const r of resources) if(r.active){const d=Math.hypot(r.x-player.position.x,r.z-player.position.z);if(d<dist){best=r;dist=d;}}
+      return best;
+    }
+    function gather(){
+      const r=nearestResource();
+      if(!r){notify('Aproxima-te de uma árvore, rocha ou arbusto.');return;}
+      inventory[r.type]+=r.amount; refresh();
+      r.active=false; scene.remove(r.mesh);
+      notify(r.type==='wood'?'Recolheste madeira.':r.type==='stone'?'Recolheste pedra.':'Recolheste alimento.');
+    }
+    function jump(){if(grounded){vertical=7.2;grounded=false;}}
+    window.addEventListener('keydown',e=>{
+      const k=e.key.toLowerCase();
+      if(k in keys)keys[k]=true;
+      if(k===' ')jump();
+      if(k==='e')gather();
+    });
+    window.addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(k in keys)keys[k]=false;});
+    renderer.domElement.addEventListener('click',()=>{if(innerWidth>700 && renderer.domElement.requestPointerLock)renderer.domElement.requestPointerLock();});
+    document.addEventListener('pointerlockchange',()=>pointerLocked=document.pointerLockElement===renderer.domElement);
+    document.addEventListener('mousemove',e=>{if(pointerLocked){yaw-=e.movementX*.0025;pitch=Math.max(-.05,Math.min(.85,pitch+e.movementY*.0018));}});
+    document.querySelectorAll('[data-key]').forEach(btn=>{
+      const k=btn.dataset.key;
+      const down=e=>{e.preventDefault();keys[k]=true;};
+      const up=e=>{e.preventDefault();keys[k]=false;};
+      btn.addEventListener('pointerdown',down);btn.addEventListener('pointerup',up);btn.addEventListener('pointercancel',up);btn.addEventListener('pointerleave',up);
+    });
+    document.getElementById('jump').addEventListener('pointerdown',e=>{e.preventDefault();jump();});
+    document.getElementById('gather').addEventListener('pointerdown',e=>{e.preventDefault();gather();});
+
+    const cameraOffset=new THREE.Vector3();
+    function animate(){
+      requestAnimationFrame(animate);
+      const dt=Math.min(clock.getDelta(),.04);
+      const forward=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+      const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw));
+      const move=new THREE.Vector3();
+      if(keys.w)move.add(forward);if(keys.s)move.sub(forward);if(keys.d)move.add(right);if(keys.a)move.sub(right);
+      const moving=move.lengthSq()>0;
+      if(moving){
+        move.normalize(); player.position.addScaledVector(move,5.2*dt);
+        player.rotation.y=Math.atan2(move.x,move.z);
+        walkTime+=dt*10;
+        legs[0].rotation.x=Math.sin(walkTime)*.55;legs[1].rotation.x=-Math.sin(walkTime)*.55;
+      } else {legs[0].rotation.x*=.8;legs[1].rotation.x*=.8;}
+      const radius=Math.hypot(player.position.x,player.position.z);
+      if(radius>46){player.position.x*=46/radius;player.position.z*=46/radius;}
+      for(const o of obstacles){const dx=player.position.x-o.x,dz=player.position.z-o.z,d=Math.hypot(dx,dz);if(d<1.0){player.position.x+=dx/(d||1)*.035;player.position.z+=dz/(d||1)*.035;}}
+      vertical-=18*dt;player.position.y+=vertical*dt;
+      const ground=heightAt(player.position.x,player.position.z);
+      if(player.position.y<=ground){player.position.y=ground;vertical=0;grounded=true;}
+      cameraOffset.set(Math.sin(yaw)*8,3.4+pitch*2,Math.cos(yaw)*8);
+      camera.position.copy(player.position).add(cameraOffset);
+      const look=new THREE.Vector3(player.position.x,player.position.y+1.2,player.position.z);
+      camera.lookAt(look);
+      renderer.render(scene,camera);
+    }
+    animate();
+    addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));});
+    refresh();
+    notify('Bem-vindo à ilha. Começa por recolher recursos.');
+  </script>
+</body>
+</html>
